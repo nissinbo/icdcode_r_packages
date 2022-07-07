@@ -1,0 +1,166 @@
+---
+title: "ICD code を扱う R パッケージ "
+author: "nissinbo"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    df-print: kable
+theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+library(tidyverse)
+```
+
+# この資料について
+
+臨床研究、特に医療情報 DB の研究で用いられる ICD code を扱うのに便利な R パッケージを紹介する。  
+事前準備として tidyverse を読み込んでおく。
+
+```{r eval = FALSE}
+library(tidyverse)
+```
+
+# ICD code とは
+
+- WHO から発出されている**疾病**の分類コード
+
+コードの検索は例えば[icd10data.com](https://www.icd10data.com/) といった Web サイトが便利である。  
+以下では、ICD code を用いた操作（併存疾患指数の算出、疾患名の付与やバージョン間のマッピングなど）を便利にするパッケージを紹介する。
+
+# [icd](https://github.com/jackwasey/icd) パッケージ
+
+- 使える関数は [RDocumentation](https://www.rdocumentation.org/packages/icd/) にあるが、網羅していないので注意。
+- ICD-9 や ICD-10 から併存疾患指数の算出、疾患名の取得などの関数がある。
+- 開発は止まり気味で、現在 CRAN からダウンロードできない。
+- GitHub から入れられる。
+
+```{r eval = FALSE}
+remotes::install_github("jackwasey/icd")
+```
+
+## `icd::charlson()`
+
+- ICD-9 や ICD-10 から Charlson Comorbidity Index の計算を行う関数
+- ICD code の列は勝手に判定
+- visit_name 引数に患者 ID に当たる列を指定 (指定しないと勝手に判定される)
+- scoring_system 引数で Quan's modified CCI も算出可能
+- 同じ列に ICD-9 と ICD-10 が混在している場合は正しく算出されないっぽい ?
+
+```{r}
+library(icd)
+
+df_icd9 <- data.frame(
+  id = c("a", "a", "b", "b", "c"),
+  icdcode = c("250.0", "441", "344.1", "412.93", "042")
+)
+
+charlson(df_icd9, visit_name = "id", short_code = FALSE, return_df = TRUE)
+```
+
+## `icd::comorbid_quan_deyo()`
+
+- 単に併存疾患をカウントする関数
+- [ドキュメント](https://www.rdocumentation.org/packages/icd/versions/4.0.9#:~:text=Comorbidities%20example%3A%20make%20%E2%80%9CTable%201%E2%80%9D%20summary%20data)にあるように Table.1 を作る場合に役立ちそう
+
+```{r}
+df_icd9 <- data.frame(
+  id = c("a", "a", "b", "b", "c"),
+  icdcode = c("250.0", "441", "344.1", "412.93", "042")
+)
+
+comorbid_quan_deyo(df_icd9) %>%   # abbrev_names = FALSE で傷病のフルネームを示す
+  data.frame()
+```
+
+## `icd::explain_code()`
+
+- ICD code から疾患名に変換する関数
+- 日本語は未対応 (誰か！)
+
+```{r}
+df_icd10 <- data.frame(
+  icdcode = c("A00", "A000", "C63.0", "C64")
+)
+
+df_icd10 %>% 
+  mutate(name = explain_code(icdcode))
+```
+
+# [comorbidity](https://github.com/ellessenne/comorbidity) パッケージ
+
+- 割と頻繁にレポジトリが更新されている様子
+
+## `comorbidity::comorbidity()`, `comorbidity::score()`
+
+- `comorbidity()` で併存疾患を抽出、`score()` で併存疾患指数を算出というステップを経る。
+- 詳細は [vignette](https://cran.r-project.org/web/packages/comorbidity/vignettes/A-introduction.html) に譲る。
+
+# [coder](https://github.com/ropensci/coder) パッケージ
+
+- 現在 [rOpenSci](https://ropensci.org/) というコミュニティのリポジトリで管理されており、今後も開発が進んでいくことが期待される。
+
+- ICD code を含むサンプルデータ (`ex_people`, `ex_icd10`, `ex_atc`)が何気に便利
+
+```{r}
+library(coder)
+head(ex_people)
+head(ex_icd10)
+head(ex_atc)
+```
+
+## `coder::categorize()` 
+
+- 併存疾患指数を算出する関数
+    - 一気に「併存疾患有無」「CCI」「modified CCI」が算出可能なため、おすすめ
+- 詳細は[ドキュメント](https://docs.ropensci.org/coder/)に譲る
+
+```{r}
+# 2つのデータフレームが必要な点が多少手間
+categorize(
+  ex_people, codedata = ex_icd10, 
+  cc = "charlson", id = "name", code = "icd10") %>% 
+  head()
+```
+
+## `coder::visualize()`
+
+- 正規表現を視覚化する、というユニークな関数
+    - 結果はブラウザで表示されるため、以下を実行してください
+
+```{r eval = FALSE}
+visualize(charlson)
+```
+
+# [touch](https://github.com/cran/touch) パッケージ
+
+- [RDocumentation](https://www.rdocumentation.org/packages/touch/) がわかりやすい
+
+## `touch::icd_map()`
+
+- [GEMs](https://www.cms.gov/Medicare/Coding/ICD10/2018-ICD-10-CM-and-GEMs) というアルゴリズムで ICD-9-CM と ICD-10-CM 間の変換を行う。
+- GEMs のみで ICD-9-CM → ICD-10-CM の変換を行うことには[批判](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8120674/)も多く存在するため、使用には注意が必要。
+
+```{r}
+library(touch)
+icd9codes <- c("0011", "001.1", "316", "29383", "E9808", "V90")
+icd_map(icd9codes)
+```
+
+# 紹介しないパッケージ
+
+- `medicalrisk`: 併存疾患指数が算出できるが、上記パッケージで十分
+- `codeCollection`: GitHub に readme も無く、よくわからない
+- `icd10gm`: ICD-10-GM というドイツ版修正に対応するもの
+- `comorbidities.icd10`: GitHub の更新が2016年で止まっている
+- `icdcoder`: GitHub の更新が2015年で止まっている
+
+# まとめ
+
+`icd` は多機能で便利だが、現在 CRAN に登録されていない。  
+CRAN にあるパッケージを使いたい、という何かしらの事情がある場合は 比較的更新が盛んな `comorbidity` や、rOpenSci が管理する `coder` を使うとよさそうである。  
+
+また GEMs を用いた iCD-9-CM → ICD-10-CM の変換には `touch` が便利である。

@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-0.9.644">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="nissinbo">
+<meta name="dcterms.date" content="2022-07-07">
+
+<title>ICD code を扱う R パッケージ</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="icd_atc_packages_files/libs/clipboard/clipboard.min.js"></script>
+<script src="icd_atc_packages_files/libs/quarto-html/quarto.js"></script>
+<script src="icd_atc_packages_files/libs/quarto-html/popper.min.js"></script>
+<script src="icd_atc_packages_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="icd_atc_packages_files/libs/quarto-html/anchor.min.js"></script>
+<link href="icd_atc_packages_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="icd_atc_packages_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="icd_atc_packages_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="icd_atc_packages_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="icd_atc_packages_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#この資料について" id="toc-この資料について" class="nav-link active" data-scroll-target="#この資料について">この資料について</a></li>
+  <li><a href="#icd-code-とは" id="toc-icd-code-とは" class="nav-link" data-scroll-target="#icd-code-とは">ICD code とは</a></li>
+  <li><a href="#icd-パッケージ" id="toc-icd-パッケージ" class="nav-link" data-scroll-target="#icd-パッケージ"><span>icd</span> パッケージ</a>
+  <ul class="collapse">
+  <li><a href="#icdcharlson" id="toc-icdcharlson" class="nav-link" data-scroll-target="#icdcharlson"><code>icd::charlson()</code></a></li>
+  <li><a href="#icdcomorbid_quan_deyo" id="toc-icdcomorbid_quan_deyo" class="nav-link" data-scroll-target="#icdcomorbid_quan_deyo"><code>icd::comorbid_quan_deyo()</code></a></li>
+  <li><a href="#icdexplain_code" id="toc-icdexplain_code" class="nav-link" data-scroll-target="#icdexplain_code"><code>icd::explain_code()</code></a></li>
+  </ul></li>
+  <li><a href="#comorbidity-パッケージ" id="toc-comorbidity-パッケージ" class="nav-link" data-scroll-target="#comorbidity-パッケージ"><span>comorbidity</span> パッケージ</a>
+  <ul class="collapse">
+  <li><a href="#comorbiditycomorbidity-comorbidityscore" id="toc-comorbiditycomorbidity-comorbidityscore" class="nav-link" data-scroll-target="#comorbiditycomorbidity-comorbidityscore"><code>comorbidity::comorbidity()</code>, <code>comorbidity::score()</code></a></li>
+  </ul></li>
+  <li><a href="#coder-パッケージ" id="toc-coder-パッケージ" class="nav-link" data-scroll-target="#coder-パッケージ"><span>coder</span> パッケージ</a>
+  <ul class="collapse">
+  <li><a href="#codercategorize" id="toc-codercategorize" class="nav-link" data-scroll-target="#codercategorize"><code>coder::categorize()</code></a></li>
+  <li><a href="#codervisualize" id="toc-codervisualize" class="nav-link" data-scroll-target="#codervisualize"><code>coder::visualize()</code></a></li>
+  </ul></li>
+  <li><a href="#touch-パッケージ" id="toc-touch-パッケージ" class="nav-link" data-scroll-target="#touch-パッケージ"><span>touch</span> パッケージ</a>
+  <ul class="collapse">
+  <li><a href="#touchicd_map" id="toc-touchicd_map" class="nav-link" data-scroll-target="#touchicd_map"><code>touch::icd_map()</code></a></li>
+  </ul></li>
+  <li><a href="#紹介しないパッケージ" id="toc-紹介しないパッケージ" class="nav-link" data-scroll-target="#紹介しないパッケージ">紹介しないパッケージ</a></li>
+  <li><a href="#まとめ" id="toc-まとめ" class="nav-link" data-scroll-target="#まとめ">まとめ</a></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">ICD code を扱う R パッケージ</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>nissinbo </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 7, 2022</p>
+    </div>
+  </div>
+    
+  </div>
+  
+
+</header>
+
+<section id="この資料について" class="level1">
+<h1>この資料について</h1>
+<p>臨床研究、特に医療情報 DB の研究で用いられる ICD code を扱うのに便利な R パッケージを紹介する。<br>
+事前準備として tidyverse を読み込んでおく。</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="icd-code-とは" class="level1">
+<h1>ICD code とは</h1>
+<ul>
+<li>WHO から発出されている<strong>疾病</strong>の分類コード</li>
+</ul>
+<p>コードの検索は例えば<a href="https://www.icd10data.com/">icd10data.com</a> といった Web サイトが便利である。<br>
+以下では、ICD code を用いた操作（併存疾患指数の算出、疾患名の付与やバージョン間のマッピングなど）を便利にするパッケージを紹介する。</p>
+</section>
+<section id="icd-パッケージ" class="level1">
+<h1><a href="https://github.com/jackwasey/icd">icd</a> パッケージ</h1>
+<ul>
+<li>使える関数は <a href="https://www.rdocumentation.org/packages/icd/">RDocumentation</a> にあるが、網羅していないので注意。</li>
+<li>ICD-9 や ICD-10 から併存疾患指数の算出、疾患名の取得などの関数がある。</li>
+<li>開発は止まり気味で、現在 CRAN からダウンロードできない。</li>
+<li>GitHub から入れられる。</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"jackwasey/icd"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="icdcharlson" class="level2">
+<h2 class="anchored" data-anchor-id="icdcharlson"><code>icd::charlson()</code></h2>
+<ul>
+<li>ICD-9 や ICD-10 から Charlson Comorbidity Index の計算を行う関数</li>
+<li>ICD code の列は勝手に判定</li>
+<li>visit_name 引数に患者 ID に当たる列を指定 (指定しないと勝手に判定される)</li>
+<li>scoring_system 引数で Quan’s modified CCI も算出可能</li>
+<li>同じ列に ICD-9 と ICD-10 が混在している場合は正しく算出されないっぽい ?</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(icd)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>df_icd9 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">c</span>(<span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">icdcode =</span> <span class="fu">c</span>(<span class="st">"250.0"</span>, <span class="st">"441"</span>, <span class="st">"344.1"</span>, <span class="st">"412.93"</span>, <span class="st">"042"</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">charlson</span>(df_icd9, <span class="at">visit_name =</span> <span class="st">"id"</span>, <span class="at">short_code =</span> <span class="cn">FALSE</span>, <span class="at">return_df =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">id</th>
+<th style="text-align: right;">Charlson</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">a</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">b</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">c</td>
+<td style="text-align: right;">6</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="icdcomorbid_quan_deyo" class="level2">
+<h2 class="anchored" data-anchor-id="icdcomorbid_quan_deyo"><code>icd::comorbid_quan_deyo()</code></h2>
+<ul>
+<li>単に併存疾患をカウントする関数</li>
+<li><a href="https://www.rdocumentation.org/packages/icd/versions/4.0.9#:~:text=Comorbidities%20example%3A%20make%20%E2%80%9CTable%201%E2%80%9D%20summary%20data">ドキュメント</a>にあるように Table.1 を作る場合に役立ちそう</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df_icd9 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">c</span>(<span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>),</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">icdcode =</span> <span class="fu">c</span>(<span class="st">"250.0"</span>, <span class="st">"441"</span>, <span class="st">"344.1"</span>, <span class="st">"412.93"</span>, <span class="st">"042"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">comorbid_quan_deyo</span>(df_icd9) <span class="sc">%&gt;%</span>   <span class="co"># abbrev_names = FALSE で傷病のフルネームを示す</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 2%">
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 4%">
+<col style="width: 7%">
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 7%">
+<col style="width: 4%">
+<col style="width: 5%">
+<col style="width: 9%">
+<col style="width: 4%">
+<col style="width: 4%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">MI</th>
+<th style="text-align: left;">CHF</th>
+<th style="text-align: left;">PVD</th>
+<th style="text-align: left;">Stroke</th>
+<th style="text-align: left;">Dementia</th>
+<th style="text-align: left;">Pulmonary</th>
+<th style="text-align: left;">Rheumatic</th>
+<th style="text-align: left;">PUD</th>
+<th style="text-align: left;">LiverMild</th>
+<th style="text-align: left;">DM</th>
+<th style="text-align: left;">DMcx</th>
+<th style="text-align: left;">Paralysis</th>
+<th style="text-align: left;">Renal</th>
+<th style="text-align: left;">Cancer</th>
+<th style="text-align: left;">LiverSevere</th>
+<th style="text-align: left;">Mets</th>
+<th style="text-align: left;">HIV</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">a</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">TRUE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">TRUE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">b</td>
+<td style="text-align: left;">TRUE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">TRUE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">c</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="icdexplain_code" class="level2">
+<h2 class="anchored" data-anchor-id="icdexplain_code"><code>icd::explain_code()</code></h2>
+<ul>
+<li>ICD code から疾患名に変換する関数</li>
+<li>日本語は未対応 (誰か！)</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df_icd10 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">icdcode =</span> <span class="fu">c</span>(<span class="st">"A00"</span>, <span class="st">"A000"</span>, <span class="st">"C63.0"</span>, <span class="st">"C64"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>df_icd10 <span class="sc">%&gt;%</span> </span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">name =</span> <span class="fu">explain_code</span>(icdcode))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">icdcode</th>
+<th style="text-align: left;">name</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">A00</td>
+<td style="text-align: left;">Cholera</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">A000</td>
+<td style="text-align: left;">Cholera due to Vibrio cholerae 01, biovar cholerae</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">C63.0</td>
+<td style="text-align: left;">Malignant neoplasm of epididymis</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">C64</td>
+<td style="text-align: left;">Malignant neoplasm of kidney, except renal pelvis</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="comorbidity-パッケージ" class="level1">
+<h1><a href="https://github.com/ellessenne/comorbidity">comorbidity</a> パッケージ</h1>
+<ul>
+<li>割と頻繁にレポジトリが更新されている様子</li>
+</ul>
+<section id="comorbiditycomorbidity-comorbidityscore" class="level2">
+<h2 class="anchored" data-anchor-id="comorbiditycomorbidity-comorbidityscore"><code>comorbidity::comorbidity()</code>, <code>comorbidity::score()</code></h2>
+<ul>
+<li><code>comorbidity()</code> で併存疾患を抽出、<code>score()</code> で併存疾患指数を算出というステップを経る。</li>
+<li>詳細は <a href="https://cran.r-project.org/web/packages/comorbidity/vignettes/A-introduction.html">vignette</a> に譲る。</li>
+</ul>
+</section>
+</section>
+<section id="coder-パッケージ" class="level1">
+<h1><a href="https://github.com/ropensci/coder">coder</a> パッケージ</h1>
+<ul>
+<li><p>現在 <a href="https://ropensci.org/">rOpenSci</a> というコミュニティのリポジトリで管理されており、今後も開発が進んでいくことが期待される。</p></li>
+<li><p>ICD code を含むサンプルデータ (<code>ex_people</code>, <code>ex_icd10</code>, <code>ex_atc</code>)が何気に便利</p></li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(coder)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ex_people)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">name</th>
+<th style="text-align: left;">surgery</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Chen, Trevor</td>
+<td style="text-align: left;">2020-09-29</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Graves, Acineth</td>
+<td style="text-align: left;">2020-06-21</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Trujillo, Yanelly</td>
+<td style="text-align: left;">2020-06-08</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Simpson, Kenneth</td>
+<td style="text-align: left;">2020-09-10</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chin, Nelson</td>
+<td style="text-align: left;">2020-08-24</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Le, Christina</td>
+<td style="text-align: left;">2020-03-28</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ex_icd10)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">name</th>
+<th style="text-align: left;">admission</th>
+<th style="text-align: left;">icd10</th>
+<th style="text-align: left;">hdia</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Tran, Kenneth</td>
+<td style="text-align: left;">2020-04-12</td>
+<td style="text-align: left;">S134A</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Tran, Kenneth</td>
+<td style="text-align: left;">2020-09-26</td>
+<td style="text-align: left;">W3319</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Tran, Kenneth</td>
+<td style="text-align: left;">2020-09-05</td>
+<td style="text-align: left;">Y0262</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Tran, Kenneth</td>
+<td style="text-align: left;">2020-07-29</td>
+<td style="text-align: left;">X0488</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Sommerville, Dominic</td>
+<td style="text-align: left;">2020-09-17</td>
+<td style="text-align: left;">V8104</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Sommerville, Dominic</td>
+<td style="text-align: left;">2020-04-28</td>
+<td style="text-align: left;">B853</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ex_atc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">name</th>
+<th style="text-align: left;">atc</th>
+<th style="text-align: left;">prescription</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Meier, Hayden</td>
+<td style="text-align: left;">QC01BD02</td>
+<td style="text-align: left;">2012-08-18</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Garza, Kenia</td>
+<td style="text-align: left;">C05AA05</td>
+<td style="text-align: left;">2017-02-26</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chapa, Nicholas</td>
+<td style="text-align: left;">L01XC29</td>
+<td style="text-align: left;">2017-07-17</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Slater, Trina</td>
+<td style="text-align: left;">QI07AA03</td>
+<td style="text-align: left;">2012-08-03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Banks, Silbret</td>
+<td style="text-align: left;">QD06BB11</td>
+<td style="text-align: left;">2014-03-01</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Winn, Robert</td>
+<td style="text-align: left;">M01CC</td>
+<td style="text-align: left;">2014-12-19</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<section id="codercategorize" class="level2">
+<h2 class="anchored" data-anchor-id="codercategorize"><code>coder::categorize()</code></h2>
+<ul>
+<li>併存疾患指数を算出する関数
+<ul>
+<li>一気に「併存疾患有無」「CCI」「modified CCI」が算出可能なため、おすすめ</li>
+</ul></li>
+<li>詳細は<a href="https://docs.ropensci.org/coder/">ドキュメント</a>に譲る</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2つのデータフレームが必要な点が多少手間</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">categorize</span>(</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  ex_people, <span class="at">codedata =</span> ex_icd10, </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">cc =</span> <span class="st">"charlson"</span>, <span class="at">id =</span> <span class="st">"name"</span>, <span class="at">code =</span> <span class="st">"icd10"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Classification based on: icd10</code></pre>
+</div>
+<div class="cell-output-display">
+<div class="kable-table">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 2%">
+<col style="width: 4%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 5%">
+<col style="width: 2%">
+<col style="width: 5%">
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 6%">
+<col style="width: 5%">
+<col style="width: 3%">
+<col style="width: 4%">
+<col style="width: 2%">
+<col style="width: 7%">
+<col style="width: 5%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 1%">
+<col style="width: 1%">
+<col style="width: 3%">
+<col style="width: 2%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">name</th>
+<th style="text-align: left;">surgery</th>
+<th style="text-align: left;">myocardial.infarction</th>
+<th style="text-align: left;">congestive.heart.failure</th>
+<th style="text-align: left;">peripheral.vascular.disease</th>
+<th style="text-align: left;">cerebrovascular.disease</th>
+<th style="text-align: left;">dementia</th>
+<th style="text-align: left;">chronic.pulmonary.disease</th>
+<th style="text-align: left;">rheumatic.disease</th>
+<th style="text-align: left;">peptic.ulcer.disease</th>
+<th style="text-align: left;">mild.liver.disease</th>
+<th style="text-align: left;">diabetes.without.complication</th>
+<th style="text-align: left;">hemiplegia.or.paraplegia</th>
+<th style="text-align: left;">renal.disease</th>
+<th style="text-align: left;">diabetes.complication</th>
+<th style="text-align: left;">malignancy</th>
+<th style="text-align: left;">moderate.or.severe.liver.disease</th>
+<th style="text-align: left;">metastatic.solid.tumor</th>
+<th style="text-align: left;">AIDS.HIV</th>
+<th style="text-align: right;">charlson</th>
+<th style="text-align: right;">deyo_ramano</th>
+<th style="text-align: right;">dhoore</th>
+<th style="text-align: right;">ghali</th>
+<th style="text-align: right;">quan_original</th>
+<th style="text-align: right;">quan_updated</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Chen, Trevor</td>
+<td style="text-align: left;">2020-09-29</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Graves, Acineth</td>
+<td style="text-align: left;">2020-06-21</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Trujillo, Yanelly</td>
+<td style="text-align: left;">2020-06-08</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Simpson, Kenneth</td>
+<td style="text-align: left;">2020-09-10</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chin, Nelson</td>
+<td style="text-align: left;">2020-08-24</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Le, Christina</td>
+<td style="text-align: left;">2020-03-28</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">TRUE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<section id="codervisualize" class="level2">
+<h2 class="anchored" data-anchor-id="codervisualize"><code>coder::visualize()</code></h2>
+<ul>
+<li>正規表現を視覚化する、というユニークな関数
+<ul>
+<li>結果はブラウザで表示されるため、以下を実行してください</li>
+</ul></li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">visualize</span>(charlson)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="touch-パッケージ" class="level1">
+<h1><a href="https://github.com/cran/touch">touch</a> パッケージ</h1>
+<ul>
+<li><a href="https://www.rdocumentation.org/packages/touch/">RDocumentation</a> がわかりやすい</li>
+</ul>
+<section id="touchicd_map" class="level2">
+<h2 class="anchored" data-anchor-id="touchicd_map"><code>touch::icd_map()</code></h2>
+<ul>
+<li><a href="https://www.cms.gov/Medicare/Coding/ICD10/2018-ICD-10-CM-and-GEMs">GEMs</a> というアルゴリズムで ICD-9-CM と ICD-10-CM 間の変換を行う。</li>
+<li>GEMs のみで ICD-9-CM → ICD-10-CM の変換を行うことには<a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8120674/">批判</a>も多く存在するため、使用には注意が必要。</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(touch)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>icd9codes <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"0011"</span>, <span class="st">"001.1"</span>, <span class="st">"316"</span>, <span class="st">"29383"</span>, <span class="st">"E9808"</span>, <span class="st">"V90"</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">icd_map</span>(icd9codes)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "A001"  "A001"  "F54"   "F0630" ""      ""     </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="紹介しないパッケージ" class="level1">
+<h1>紹介しないパッケージ</h1>
+<ul>
+<li><code>medicalrisk</code>: 併存疾患指数が算出できるが、上記パッケージで十分</li>
+<li><code>codeCollection</code>: GitHub に readme も無く、よくわからない</li>
+<li><code>icd10gm</code>: ICD-10-GM というドイツ版修正に対応するもの</li>
+<li><code>comorbidities.icd10</code>: GitHub の更新が2016年で止まっている</li>
+<li><code>icdcoder</code>: GitHub の更新が2015年で止まっている</li>
+</ul>
+</section>
+<section id="まとめ" class="level1">
+<h1>まとめ</h1>
+<p><code>icd</code> は多機能で便利だが、現在 CRAN に登録されていない。<br>
+CRAN にあるパッケージを使いたい、という何かしらの事情がある場合は 比較的更新が盛んな <code>comorbidity</code> や、rOpenSci が管理する <code>coder</code> を使うとよさそうである。</p>
+<p>また GEMs を用いた iCD-9-CM → ICD-10-CM の変換には <code>touch</code> が便利である。</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    setTimeout(function() {
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      let href = ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const cites = ref.parentNode.getAttribute('data-cites').split(' ');
+    tippyHover(ref, function() {
+      var popup = window.document.createElement('div');
+      cites.forEach(function(cite) {
+        var citeDiv = window.document.createElement('div');
+        citeDiv.classList.add('hanging-indent');
+        citeDiv.classList.add('csl-entry');
+        var biblioDiv = window.document.getElementById('ref-' + cite);
+        if (biblioDiv) {
+          citeDiv.innerHTML = biblioDiv.innerHTML;
+        }
+        popup.appendChild(citeDiv);
+      });
+      return popup.innerHTML;
+    });
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
