@@ -6,8 +6,10 @@ format:
   html:
     toc: true
     toc-location: left
-    df-print: kable
-theme: flatly
+    df-print: paged
+    code-fold: show
+    code-tools: true
+    theme: Minty
 ---
 
 ```{r setup, include=FALSE}
@@ -15,152 +17,262 @@ knitr::opts_chunk$set(warning = FALSE)
 library(tidyverse)
 ```
 
+::: {.callout-note}
+## 略語集
+CCI: Charlson Comorbidity Index  
+GEMs: General Equivalence Mappings
+:::
+
 # この資料について
 
-臨床研究、特に医療情報 DB の研究で用いられる ICD code を扱うのに便利な R パッケージを紹介する。  
+医療情報 DB を用いた研究などでは、ICD code を使って疾患の特定を行うことが多い。  
+ここでは、ICD code のハンドリングや疾患名の付与、CCI の算出といった作業に便利な R パッケージを紹介する。
+
+::: {.callout-tip}
+## ICD code とは
+WHO から発出されている**疾病**の分類コード  
+コードの検索は例えば[icd10data.com](https://www.icd10data.com/) が便利である。  
+ICD-9, ICD-10 といったバージョン違いの他に、米国では ICD-10-CM が用いられるなど、それらの差異には注意が必要である。
+:::
+
 事前準備として tidyverse を読み込んでおく。
 
 ```{r eval = FALSE}
 library(tidyverse)
 ```
 
-# ICD code とは
+# [`coder`](https://github.com/ropensci/coder) パッケージ
 
-- WHO から発出されている**疾病**の分類コード
+[rOpenSci](https://ropensci.org/) プロジェクトに入っており、今後も開発が進んでいくことが期待される。  
+ICD code の他にも薬剤コードの一種である ATC code についても対応している。
 
-コードの検索は例えば[icd10data.com](https://www.icd10data.com/) といった Web サイトが便利である。  
-以下では、ICD code を用いた操作（併存疾患指数の算出、疾患名の付与やバージョン間のマッピングなど）を便利にするパッケージを紹介する。
-
-# [icd](https://github.com/jackwasey/icd) パッケージ
-
-- 使える関数は [RDocumentation](https://www.rdocumentation.org/packages/icd/) にあるが、網羅していないので注意。
-- ICD-9 や ICD-10 から併存疾患指数の算出、疾患名の取得などの関数がある。
-- 開発は止まり気味で、現在 CRAN からダウンロードできない。
-- GitHub から入れられる。
-
-```{r eval = FALSE}
-remotes::install_github("jackwasey/icd")
+```{r}
+library(coder)
 ```
 
-## `icd::charlson()`
+## ICD code を含むサンプルデータ
 
-- ICD-9 や ICD-10 から Charlson Comorbidity Index の計算を行う関数
-- ICD code の列は勝手に判定
-- visit_name 引数に患者 ID に当たる列を指定 (指定しないと勝手に判定される)
-- scoring_system 引数で Quan's modified CCI も算出可能
-- 同じ列に ICD-9 と ICD-10 が混在している場合は正しく算出されないっぽい ?
+サンプルデータとして `ex_people`, `ex_icd10`, `ex_atc` が準備されている。
+
+::: {.panel-tabset}
+
+## ex_people
+
+```{r echo=FALSE}
+ex_people
+```
+
+## ex_icd10
+
+```{r echo=FALSE}
+ex_icd10
+```
+
+## ex_atc
+
+```{r echo=FALSE}
+ex_atc
+```
+
+:::
+
+## `categorize()`
+
+`coder` パッケージには、データフレームを結合する `codify()`、併存疾患を抽出する `classify()`、CCI を算出する `index()` という関数があるが、基本的には `categorize()` で一気に行う。  
+以下では[ドキュメント](https://docs.ropensci.org/coder/)を参考にしたサンプルコードを示す。
+
+```{r}
+categorize(
+  x = ex_people, codedata = ex_icd10, 
+  cc = "charlson", id = "name", code = "icd10")
+```
+
+- `x` には重複のない患者 ID 列を含むデータフレームを指定する
+- `cc` に入るオプションは以下で確認できる
+
+```{r}
+all_classcodes()
+```
+
+- `classcodes`: 算出するスコア
+  - `console` に `?charlson` などと入力してドキュメントを見ると、出自の文献を確認できる
+  - `console` に `elixhauser` などと入力して Classcodes object から対象疾患を確認できる
+- `regex`: 対応するコード(ICD-10 など)
+- `indices`: 重みづけの方法
+
+併存疾患を選択するための time window を指定したい場合は、以下のようにする。
+
+```{r}
+ch <- 
+  categorize(
+    x = ex_people, codedata = ex_icd10, cc = "charlson", id = "name", code = "icd10",
+    index       = c("quan_original", "quan_updated"),  # 同時に複数の重みづけで算出
+    codify_args = list(
+      date      = "surgery",   # ex_people 中の指標日にあたる列
+      code_date = "admission", # ex_icd10 中の診断日にあたる列
+      days      = c(-90, -1)   # Time window を指定(この例では1-90日前)
+    )
+  )
+
+ch  # Time window 中に レコードが 1 つも存在しない場合、スコアは NA となることに注意
+
+# 分布の確認
+ch |> 
+  mutate(across(starts_with("quan"), ~replace_na(., 0))) |>   # NA を 0 に変換
+  pivot_longer(cols = c(quan_original, quan_updated), names_to = "weight_method", values_to = "score") |> 
+  ggplot() +
+  aes(score, fill = weight_method) + 
+  geom_bar(position = "dodge", width = 0.5)
+```
+
+# [`comorbidity`](https://github.com/ellessenne/comorbidity) パッケージ
+
+- 頻繁にレポジトリが更新されており、2022年には CRAN で 1.0.0 がリリースされている。
+
+## 併存疾患の抽出、CCI の算出
+
+`comorbidity()` で ICD code から併存疾患を抽出し、`score()` で CCI を算出する。  
+以下に [vignette](https://cran.r-project.org/web/packages/comorbidity/vignettes/A-introduction.html) を改変したサンプルコードを示す。
+
+```{r}
+library(comorbidity)
+
+# サンプルデータ作成
+set.seed(1)
+df <- data.frame(
+  id = sample(seq(100), size = 10000, replace = TRUE),
+  code = sample_diag(n = 100)) |>   # generate ICD-10 code at random
+  tibble() |> 
+  arrange(id, code)
+
+# CCI の疾患の集計
+charlson_df <- df |> 
+  comorbidity(id = "id", code = "code", 
+              map = "charlson_icd10_quan", assign0 = FALSE)
+
+# CCI の計算
+cci_df <- charlson_df |> 
+  mutate(id, 
+         original_cci = score(charlson_df, weights = "charlson", assign0 = FALSE), 
+         quan_cci = score(charlson_df, weights = "quan", assign0 = FALSE), 
+         .keep = "none") 
+
+# Elixhauser Comorbidity Index: ECI の疾患の集計
+elixhauser_df <- df |> 
+  comorbidity(id = "id", code = "code", 
+              map = "elixhauser_icd10_quan", assign0 = FALSE)
+
+# ECI の計算
+eci_df <- elixhauser_df |> 
+  mutate(id, 
+         vanwalraven_eci = score(elixhauser_df, weights = "vw", assign0 = FALSE), 
+         sharma_eci = score(elixhauser_df, weights = "swiss", assign0 = FALSE), 
+         .keep = "none")
+```
+
+- CCI は2つの重みづけが利用可能
+- [Charlson 1987](https://doi.org/10.1016/0021-9681(87)90171-8)
+- [Quan 2011](https://doi.org/10.1093/aje/kwq433)
+- Elixhauser Comorbidity Index は2つの重みづけが利用可能
+- [van Walraven 2009](https://doi.org/10.1097/mlr.0b013e31819432e5)
+- [Sharma 2021](https://doi.org/10.1186/s12913-020-05999-5)
+
+# [`touch`](https://github.com/cran/touch) パッケージ
+
+ICD-9 と ICD-10 の相互変換を行うには、GEMs を用いる方法がある。R で実現するには `touch` パッケージが唯一の選択肢である。  
+使用する際は [RDocumentation](https://www.rdocumentation.org/packages/touch/) がわかりやすい。
+
+## GEMs とは
+
+### 概要
+
+- CMS.gov が開発した ICD code 変換の対応表
+  - [2018年版](https://www.cms.gov/Medicare/Coding/ICD10/2018-ICD-10-CM-and-GEMs)が最終確定版
+- [GEMs User’s Guide](https://ftp.cdc.gov/pub/health_statistics/nchs/publications/ICD10CM/2018/Dxgem_guide_2018.pdf) や [Documentation for Technical Users](https://ftp.cdc.gov/pub/health_statistics/nchs/publications/ICD10CM/2018/GemsTechDoc_2018.pdf) に変換規則が記載
+
+### GEMs の特徴
+
+- コードの変換は 1:1 マッピング(50%)の他に 1:n, n:1, n:n マッピングや対応がないものもある
+- 9→10 (Forward) と 10→9 (Backward) の辞書は鏡像の関係ではない
+- [AHIMA](https://library.ahima.org/doc?oid=106975) がわかりやすい
+
+### GEMs を用いた変換に対する批判
+
+GEMs による ICD-9-CM → ICD-10-CM 変換には批判も多く存在するため、注意が必要
+
+- [AHIMA GEMs](https://library.ahima.org/PB/GEMs#.Ylg36ujP200)
+  - GEMs は単純な crosswalk: 横断歩道ではない
+  - 1:n の時にすべての値を残すか、妥協点として無理やり 1:1 にするかは目的次第
+  - 見たい 9-CM が少なければ、GEMs を使う必要はなく、コードを直接検索するのが速く簡単で正確である
+- [Reeves 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7059548/)
+  - GEMsを単独で使用しても、包括的かつ正確には変換できない
+    - 9-CM と 10-CM の比較可能性を確保するための確実な選択肢は、各コードの手動レビューである
+
+### GEMs を用いた変換の精度を検証した論文
+
+- [Turer 2015](https://academic.oup.com/jamia/article/22/2/417/697375)
+  - 医療記録のプロが 598 の 9-CM を 10-CM に手動変換 「GEMs と一致したのは85.2%」
+- [Columbo 2018](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6501611/)
+  - 心血管イベントのコードを医師が検証 「GEMs は便利だけど、手動で検証する必要がある」
+- [Simeone 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8120674)
+  - 医師・コーダーが手動変換して検証 「手動のほうが包括的である」
+- [Mainor 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6535377/)
+  - 2015年の 9-CM と 10-CM の切り替え前後で、GEMs で翻訳されたコードの診断頻度が大きく変動していた（=疾患の増減とは考えづらく、変換が不完全であることの現れ）
+
+## ICD-9 と ICD-10 の相互変換
+
+`icd_map()` を使う。
+
+```{r}
+library(touch)
+
+icd9codes <- c("0011", "001.1", "316", "29383", "E9808", "V90")
+
+icd_map(icd9codes)
+```
+
+- `method` で 4 つの変換方法を指定可能
+  - gem
+    - 9→10 の辞書を用いて 9→10 に変換
+    - 多くの論文ではこの方法
+  - reverse-gem
+    - 10→9 の辞書を用いて 9→10 に変換
+  - both
+    - forward と reverse-forward の結果の和集合
+  - multi-stage
+    1. 10→9 の辞書を用いて 9→10 に変換
+    2. 1 の結果を 9→10 の辞書を用いて 10→9 に変換
+    3. 2 の結果を 10→9 の辞書を用いて 9→10 に変換
+
+# [`icd`](https://github.com/jackwasey/icd) パッケージ
+
+現在 CRAN に収載されておらず、上記のパッケージで代替できる機能を使う理由は見当たらないが、ICD code から傷病名を付与する `explain_code()` は便利である。
+
+## インストール
+
+CRAN にないため、GitHub からインストールする。
+
+```{r eval=FALSE}
+remotes::install_github("jackwasey/icd")
+
+# icd を初めて使う場合は以下を実行する
+icd::set_icd_data_dir()
+```
+
+## `explain_code()`
 
 ```{r}
 library(icd)
 
-df_icd9 <- data.frame(
-  id = c("a", "a", "b", "b", "c"),
-  icdcode = c("250.0", "441", "344.1", "412.93", "042")
-)
+df_icd10 <- tibble(icdcode = c("A00", "A000", "C63.0", "C64"))
 
-charlson(df_icd9, visit_name = "id", short_code = FALSE, return_df = TRUE)
-```
-
-## `icd::comorbid_quan_deyo()`
-
-- 単に併存疾患をカウントする関数
-- [ドキュメント](https://www.rdocumentation.org/packages/icd/versions/4.0.9#:~:text=Comorbidities%20example%3A%20make%20%E2%80%9CTable%201%E2%80%9D%20summary%20data)にあるように Table.1 を作る場合に役立ちそう
-
-```{r}
-df_icd9 <- data.frame(
-  id = c("a", "a", "b", "b", "c"),
-  icdcode = c("250.0", "441", "344.1", "412.93", "042")
-)
-
-comorbid_quan_deyo(df_icd9) %>%   # abbrev_names = FALSE で傷病のフルネームを示す
-  data.frame()
-```
-
-## `icd::explain_code()`
-
-- ICD code から疾患名に変換する関数
-- 日本語は未対応 (誰か！)
-
-```{r}
-df_icd10 <- data.frame(
-  icdcode = c("A00", "A000", "C63.0", "C64")
-)
-
-df_icd10 %>% 
+df_icd10 |> 
   mutate(name = explain_code(icdcode))
 ```
 
-# [comorbidity](https://github.com/ellessenne/comorbidity) パッケージ
-
-- 割と頻繁にレポジトリが更新されている様子
-
-## `comorbidity::comorbidity()`, `comorbidity::score()`
-
-- `comorbidity()` で併存疾患を抽出、`score()` で併存疾患指数を算出というステップを経る。
-- 詳細は [vignette](https://cran.r-project.org/web/packages/comorbidity/vignettes/A-introduction.html) に譲る。
-
-# [coder](https://github.com/ropensci/coder) パッケージ
-
-- 現在 [rOpenSci](https://ropensci.org/) というコミュニティのリポジトリで管理されており、今後も開発が進んでいくことが期待される。
-
-- ICD code を含むサンプルデータ (`ex_people`, `ex_icd10`, `ex_atc`)が何気に便利
-
-```{r}
-library(coder)
-head(ex_people)
-head(ex_icd10)
-head(ex_atc)
-```
-
-## `coder::categorize()` 
-
-- 併存疾患指数を算出する関数
-    - 一気に「併存疾患有無」「CCI」「modified CCI」が算出可能なため、おすすめ
-- 詳細は[ドキュメント](https://docs.ropensci.org/coder/)に譲る
-
-```{r}
-# 2つのデータフレームが必要な点が多少手間
-categorize(
-  ex_people, codedata = ex_icd10, 
-  cc = "charlson", id = "name", code = "icd10") %>% 
-  head()
-```
-
-## `coder::visualize()`
-
-- 正規表現を視覚化する、というユニークな関数
-    - 結果はブラウザで表示されるため、以下を実行してください
-
-```{r eval = FALSE}
-visualize(charlson)
-```
-
-# [touch](https://github.com/cran/touch) パッケージ
-
-- [RDocumentation](https://www.rdocumentation.org/packages/touch/) がわかりやすい
-
-## `touch::icd_map()`
-
-- [GEMs](https://www.cms.gov/Medicare/Coding/ICD10/2018-ICD-10-CM-and-GEMs) というアルゴリズムで ICD-9-CM と ICD-10-CM 間の変換を行う。
-- GEMs のみで ICD-9-CM → ICD-10-CM の変換を行うことには[批判](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8120674/)も多く存在するため、使用には注意が必要。
-
-```{r}
-library(touch)
-icd9codes <- c("0011", "001.1", "316", "29383", "E9808", "V90")
-icd_map(icd9codes)
-```
-
-# 紹介しないパッケージ
-
-- `medicalrisk`: 併存疾患指数が算出できるが、上記パッケージで十分
-- `codeCollection`: GitHub に readme も無く、よくわからない
-- `icd10gm`: ICD-10-GM というドイツ版修正に対応するもの
-- `comorbidities.icd10`: GitHub の更新が2016年で止まっている
-- `icdcoder`: GitHub の更新が2015年で止まっている
-
 # まとめ
 
-`icd` は多機能で便利だが、現在 CRAN に登録されていない。  
-CRAN にあるパッケージを使いたい、という何かしらの事情がある場合は 比較的更新が盛んな `comorbidity` や、rOpenSci が管理する `coder` を使うとよさそうである。  
-
-また GEMs を用いた iCD-9-CM → ICD-10-CM の変換には `touch` が便利である。
+- rOpenSci の `coder` はシンプルな関数群と、豊富なリファレンスがあることより一押し
+- `comorbidity` は、CCI 算出が目的であれば十分
+- `icd` は `explain_code()` が他のパッケージで代替できない関数となっている
+-  GEMs を用いた iCD-9-CM → ICD-10-CM の変換には `touch` が便利
